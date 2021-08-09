@@ -1,0 +1,107 @@
+---
+title: "SalesPerStoreAnalysis"
+author: "Jonah Gerstel"
+date: "8/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load in libraries:
+```{r}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(vroom)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+```
+
+Load in cleaned data:
+```{r}
+load(data)
+```
+
+Sales per Liquor Store by County
+```{r}
+# Breaking down sales per store by county
+data %>% group_by(County,StoreNumber) %>% summarise(SalesPerStore = sum(Sale)) %>% group_by(County) %>% summarise(AvSalesPerStore = mean(SalesPerStore), TotalSales = sum(SalesPerStore)) %>% arrange(desc(AvSalesPerStore))-> SalesPerStoreCounty
+SalesPerStoreCounty %>% slice(1:20) -> SalesPerStoreCountyTop20
+
+# Plotting average sales per store top 20
+ggplot(data=SalesPerStoreCountyTop20, aes(x=reorder(County,-AvSalesPerStore), y=AvSalesPerStore)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(SalesPerStoreCountyTop20$AvSalesPerStore))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(title = 'Top 20 Counties in Avg Sales Per Store', y = 'Avg Sales Per Store', x = 'Counties')
+
+# Plotting total sales of each of the Top 20 counties by sales per store
+ggplot(data=SalesPerStoreCountyTop20, aes(x=reorder(County,-AvSalesPerStore), y=TotalSales)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(SalesPerStoreCountyTop20$AvSalesPerStore))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(title = 'Total Sales Per County for Top 20 Counties in Avg Sales Per Store', y = 'Total Sales ($)', x = 'Counties')
+
+# Scatter plot of total sales and average sales per store by county
+ggplot(data=SalesPerStoreCounty, aes(x=AvSalesPerStore,y=TotalSales)) + geom_point(color = 'purple') +
+  geom_text(aes(label= ifelse(TotalSales > quantile(TotalSales, 0.95),
+                              as.character(County),'')),hjust=1.1,vjust=0.5) +
+  labs(title = 'Total Sales vs Avg Sales Per Store by County', y = 'Total Sales ($)', x = 'Avg Sales Per Store')
+```
+
+Looking at Polk, Johnson, Scott, Linn, Woodbury, Story, and Black Hawk
+
+```{r}
+# Looking at top counties from above analysis and liquor category breakdown
+data %>% filter(County == 'Polk'|County == 'Johnson'|County == 'Scott'|County == 'Linn'|County == 'Woodbury'|County == 'Story'|County == 'Black Hawk') %>% group_by(County,BroadCat) %>% summarise(TotalSales = sum(Sale)) %>% drop_na() -> CountyCatSales
+
+# Bar plot of sales by category for each county
+ggplot(data=CountyCatSales, aes(x=County, y=TotalSales, fill = BroadCat)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(title = 'Top Counties Category Breakdown by Sales', y = 'Total Sales', x = 'Counties') + coord_flip()
+
+# Same as above, but using proportion of bottles sold instead of total sales to normalize data among counties
+data %>% filter(County == 'Polk'|County == 'Johnson'|County == 'Scott'|County == 'Linn'|County == 'Woodbury'|County == 'Story'|County == 'Black Hawk') %>% group_by(County,BroadCat) %>% summarise(n=n()) %>% drop_na() %>% mutate(prop = n/sum(n)) -> CountyCatSalesProp
+
+# Plotting proportion of bottles sold by category 
+ggplot(data=CountyCatSalesProp, aes(x=County, y=prop, fill = BroadCat)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(title = 'Top Counties Category Breakdown by Bottles Sold', y = 'Proportion of Sales', x = 'Counties') + coord_flip()
+```
+
+Sales Per Liquor Store by City
+```{r}
+# Breaking down Top 20 cities by total sales
+data %>% group_by(City,StoreNumber) %>% summarise(SalesPerStore = sum(Sale)) %>% group_by(City) %>% summarise(AvSalesPerStore = mean(SalesPerStore), TotalSales = sum(SalesPerStore)) %>% arrange(desc(AvSalesPerStore))-> SalesPerStoreCity
+SalesPerStoreCity %>% slice(1:20) -> SalesPerStoreCityTop20
+
+# DF of cities and associated counties
+data %>% group_by(County, City) %>% summarise(n()) -> CountyCity
+
+# Merging in each city's county for Top 20 sales
+merge(SalesPerStoreCityTop20,CountyCity,by="City") -> Top20CountCit
+
+# Merging in each city's county for all cities
+merge(SalesPerStoreCity, CountyCity, by = "City") ->SalesPerStoryCountCit
+SalesPerStoryCountCit
+
+# Bar plot Top 20 cities in avg sales per store
+ggplot(data=SalesPerStoreCityTop20, aes(x=reorder(City,-AvSalesPerStore), y=AvSalesPerStore)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(SalesPerStoreCityTop20$AvSalesPerStore))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(title = 'Top 20 Cities in Avg Sales Per Store', y = 'Avg Sales Per Store', x = 'Cities')
+
+# Bar plot total sales for top 20 cities in avg sales per store
+ggplot(data=SalesPerStoreCityTop20, aes(x=reorder(City,-AvSalesPerStore), y=TotalSales)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(SalesPerStoreCityTop20$AvSalesPerStore))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(title = 'Total Sales Per City for Top 20 Counties in Avg Sales Per Store', y = 'Total Sales ($)', x = 'Cities')
+
+# Scatter plot of Top 20 cities by avg sales per store and total sales
+ggplot(data=Top20CountCit, aes(x=AvSalesPerStore,y=TotalSales, color = County)) + geom_point() + geom_text_repel(aes(label=(as.character(City)))) + 
+  labs(title = 'Top 20 Total Sales vs Avg Sales Per Store by City', y = 'Total Sales ($)', x = 'Avg Sales Per Store')
+```
