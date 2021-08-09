@@ -49,18 +49,24 @@ https://www.kaggle.com/residentmario/iowa-liquor-sales
    - Found months and liquor types that deviate from their mean monthly sales by 10%
    - Found months and liquor types that deviate from their mean monthly sales by 20%
       - Major finds (helpful for liquor stores in what they stock month to month and distilleries in what they make month to month):
+        
         Gin:
           - Increase by over 20% in June
           - Decrease by over 20% in January and November
+        
         Tequila:
           - Increase by over 20% in April and June
           - Decrease by over 20% in November
+        
         Liqueur:
           - Increase by over 20% in October and December
+        
         Rum:
           - Decrease by over 20% in November
+        
         Vodka:
           - Decrease by over 20% in November
+        
         Whiskey:
           - Increase by over 20% in October
         
