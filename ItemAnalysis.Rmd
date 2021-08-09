@@ -1,0 +1,98 @@
+---
+title: "ItemAnalysis"
+author: "Jonah Gerstel"
+date: "8/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load in libraries:
+```{r}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(vroom)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+```
+
+Load in cleaned data:
+```{r}
+load(data)
+```
+
+Margin by Item
+```{r}
+# Breaking down individual items by Margin Filtering out Margins below 55%
+data %>% group_by(ItemDescription) %>% summarise(Margin =                                   (sum(StateBottleRetail)-sum(StateBottleCost))/sum(StateBottleCost), TotalSales = sum(Sale)) %>% drop_na() %>% mutate(CleanMargin = round(Margin*100,2)) %>% filter(Margin > 0.55)-> MarginByItem
+
+# Top 20 total sales items by margin
+MarginByItem %>% arrange(desc(TotalSales)) %>% slice(1:20) -> MarginByItemTop20
+
+# Plotting bar graph of Top 20 total sales items by margin
+ggplot(data=MarginByItemTop20, aes(x=reorder(ItemDescription,TotalSales), y=TotalSales)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(MarginByItemTop20$TotalSales))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(title = 'Top 20 Items in Total Sales with Margin > 55%', y = 'Total Sales ($)', x = 'Item') + coord_flip()
+
+# Breaking down individual items by Margin
+data %>% group_by(ItemDescription) %>% summarise(Margin =                                   (sum(StateBottleRetail)-sum(StateBottleCost))/sum(StateBottleCost), TotalSales = sum(Sale)) %>% drop_na() %>% mutate(CleanMargin = round(Margin*100,2)) -> MarginByItemAll
+
+# Creating df for Items and associated categories
+data %>% group_by(BroadCat, ItemDescription) %>% summarise(n()) %>% drop_na() -> ItemCat
+ItemCat
+
+# Merging in categories to item/margins df
+merge(MarginByItemAll, ItemCat, by = "ItemDescription") -> MarginByItemAll
+
+# Scatter Plot for items by Margin and Total Sales colored by category
+ggplot(MarginByItemAll, aes(x=CleanMargin, y=TotalSales, color = BroadCat)) +
+  geom_point() + geom_vline(xintercept = 50) +
+  labs(title = 'Margin by Item and Sales', y = 'Total Sales ($)', x = 'Margin')
+
+# Taking Top 20 Total Sales for Items
+MarginByItemAll %>% arrange(desc(TotalSales)) %>% slice(1:20) -> Top20Items
+
+# Bar plot of Top 20 Total Sales for Items
+ggplot(Top20Items, aes(x=reorder(ItemDescription,TotalSales), y=TotalSales, fill = BroadCat)) +
+  geom_bar(stat = "identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + coord_flip() +
+  labs(title = 'Top 20 Sellers', x = 'Liquor', y = 'Total Sales')
+```
+
+Shellback Spiced and Shellback Silver
+```{r}
+# Looking at % Unsold by Item
+data %>% group_by(ItemDescription) %>% summarise(PctUnsold = (-sum(VolumeSold)+sum(BottleVolume/1000*Pack))/sum(BottleVolume/1000*Pack)) %>% arrange(desc(PctUnsold)) %>% drop_na() -> PctUnsoldByItem
+
+# Taking % Unsold Data for Shellback Items
+PctUnsoldByItem %>% filter(ItemDescription == "Shellback Spiced" | ItemDescription == "Shellback Silver") -> ShellbackUnsold
+colnames(ShellbackUnsold) = c("BroadCat", "PctUnsold")
+
+# Combining % Unsold by Cat with Shellback Items
+bind_rows(ShellbackUnsold, PctUnsoldByCat) -> ShellCatUnsold
+
+# Arranging combined table from above code by % Unsold
+ShellCatUnsold %>% arrange(PctUnsold) -> ShellCatUnsold
+
+# Filtering out unneeded categories
+ShellCatUnsold %>% filter(BroadCat == 'Rum' |BroadCat == 'Tequila' |BroadCat == 'Shellback Spiced' |BroadCat == 'Shellback Silver') -> ShellCatUnsold
+
+# Bar graph of typical % unsold per category and Shellback to compare
+ggplot(data=ShellCatUnsold, aes(x=reorder(BroadCat,PctUnsold), y=PctUnsold)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(ShellCatUnsold$BroadCat))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_abline(intercept = 0.1256791, slope = 0, color = "red") +
+  geom_abline(intercept = 0.2452207, slope = 0, color = "green") +
+  labs(title = 'Shellback vs Category Average', y = '% Unsold', x = 'Item') +
+  coord_flip()
+```
+
+
+
+
