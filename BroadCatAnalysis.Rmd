@@ -1,0 +1,103 @@
+---
+title: "BroadCatAnalysis"
+author: "Jonah Gerstel"
+date: "8/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Load in libraries:
+```{r}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(vroom)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+```
+
+Load in cleaned data:
+```{r}
+load(data)
+```
+Sales By Broad Category
+```{r}
+# Breaking down total sales by category
+data %>% group_by(BroadCat) %>% summarise(TotalSales = sum(Sale)) %>% arrange(desc(TotalSales)) -> SalesByCat
+SalesByCat %>% drop_na() -> SalesByCat
+
+# Bar graph of sales by category
+ggplot(data=SalesByCat, aes(x=reorder(BroadCat,TotalSales), y=TotalSales)) + geom_bar(stat="identity", fill = rainbow(n=length(SalesByCat$TotalSales))) + coord_flip() + labs(title = 'Sales by Broad Category', x = 'Total Sales ($)', y = 'Broad Category')
+
+# Breaking down sales by category into percentages
+SalesByCat %>% mutate(Pct = round(TotalSales/sum(TotalSales)*100)) -> SalesByCat
+
+# Bar graph of % sales by category
+ggplot(data=SalesByCat, aes(x=reorder(BroadCat,Pct), y=Pct)) + geom_bar(stat="identity", fill = rainbow(n=length(SalesByCat$Pct))) + coord_flip() + labs(title = 'Sales by Broad Category', y = 'Pct Sales', x = 'Broad Category') + geom_text(aes(label = paste(Pct,"%"), hjust = 1.5))
+```
+Sales by BroadCategory by Year
+```{r}
+# Breaking down Total Sales by Category by Year
+data %>% group_by(Year,BroadCat) %>% summarise(TotalSales = sum(Sale)) %>% arrange(desc(TotalSales)) %>% drop_na() %>% filter(Year != 2017) -> SalesByCatYr
+
+# Line graph of Total Sales by Category By Year
+ggplot(SalesByCatYr, aes(x=Year, y=TotalSales)) + 
+  geom_line(aes(color = BroadCat)) +
+  xlab("Year") + ylab("Yearly Sales ($)") + labs(title = "Yearly Sales by BroadCat")
+
+# Breaking down % Total Sales by Category by Year
+SalesByCatYr %>% mutate(Pct = round(TotalSales/sum(TotalSales)*100)) -> SalesByCatYr
+
+# Line graph of % Total Sales by Category By Year
+ggplot(SalesByCatYr, aes(x=Year, y=Pct)) + 
+  geom_line(aes(color = BroadCat)) +
+  xlab("Year") + ylab("% Yearly Sales") + labs(title = "% Yearly Sales by BroadCat")
+
+```
+Profit Margin Per Broad Cat
+```{r}
+# Breaking down Margins by Category
+data %>% group_by(BroadCat) %>% summarise(Margin =                                   (sum(StateBottleRetail)-sum(StateBottleCost))/sum(StateBottleCost)) %>% drop_na() %>% mutate(CleanMargin = round(Margin*100,2)) -> MarginByCat 
+
+# Plotting Bar Graph of Margins by Category
+ggplot(data=MarginByCat, aes(x=reorder(BroadCat,Margin), y=CleanMargin)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(MarginByCat$Margin))) + coord_flip() +
+  labs(title = 'Avg Margin by Broad Category', y = 'Average Margin', x = 'Broad Category') +
+  geom_text(aes(label = paste(CleanMargin,"%"), hjust = 1.5))
+```
+Unsold By Cat
+```{r}
+# Breaking down % Unsold by Category
+data %>% group_by(BroadCat) %>% summarise(PctUnsold = (-sum(VolumeSold)+sum(BottleVolume/1000*Pack))/sum(BottleVolume/1000*Pack)) %>% arrange(desc(PctUnsold)) %>% drop_na() %>% mutate(PctClean = round(PctUnsold*100,2)) -> PctUnsoldByCat
+
+# Plotting Bar Graph of % Sold by Category
+ggplot(data=PctUnsoldByCat, aes(x=reorder(BroadCat,PctClean), y=PctClean)) +
+  geom_bar(stat="identity", fill = rainbow(n=length(PctUnsoldByCat$BroadCat))) + coord_flip() +
+  labs(title = '% Unsold by Category', x = 'Broad Category', y = '% Unsold') +
+  geom_text(aes(label = paste(PctClean,"%"), hjust = 1.5))
+```
+Unsold % and Total Sales
+```{r}
+# Repeat of above % Unsold by Category
+data %>% group_by(BroadCat) %>% summarise(PctUnsold = (-sum(VolumeSold)+sum(BottleVolume/1000*Pack))/sum(BottleVolume/1000*Pack), TotalSales = sum(Sale)) %>% arrange(desc(PctUnsold)) %>% drop_na() %>% mutate(PctClean = round(PctUnsold*100,2)) -> PctUnsoldSalesByCat
+
+# Scatter Plot of Total Sales vs % Unsold by Category with Linear Model
+PctUnsoldSalesByCat
+ggplot(PctUnsoldSalesByCat, aes(x=PctClean, y=TotalSales, color=BroadCat)) +
+  geom_point(size=5) +
+  geom_abline(intercept = 82117164, slope = -1860018, lty = 2) +
+  labs(title = 'Total Sales vs % Unsold by Cat', x = '% Unsold', y = 'Total Sales')
+
+# Linear Model of Total Sales vs % Unsold by Category
+model = lm(PctUnsoldSalesByCat$TotalSales ~ PctUnsoldSalesByCat$PctClean)
+summary(model)
+
+# Model shows signficance for intercept, coefficient, and overall model
+# R-Squared of 0.51
+```
+
+
