@@ -8,7 +8,7 @@ https://www.kaggle.com/residentmario/iowa-liquor-sales
 
 ## Methodology and Findings
 - Cleaned raw data via Python initially due to low speed of R with high volume datasets (about 13,000,000 x 24)
-  - **Python script pulled out only 1 out of every 5 rows in order to shrink dataset to be usable in R
+  - **Python script pulled out only 1 out of every 5 rows in order to shrink dataset to be usable in R for the remainder of this analysis
 - Analyzed data by category of liquor and yearly trends
   - Found whiskey to be most popular followed by vodka
       - Good for liquor stores and distilleries to understand most popular alcohol types
