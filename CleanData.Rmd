@@ -1,0 +1,73 @@
+---
+title: "Cleaning Liquor Dataset"
+author: "Jonah Gerstel"
+date: "8/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load in libraries:
+```{r}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(vroom)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+```
+Initially cleaned some of the data in Python (R was taking too long).
+- Subset one out of every 5 rows
+- Change Date column from string to DateTime
+- Dropped unneeded columns
+- Dropped rows with NAs
+- Created columns for Month, Year, and Month_Year
+
+Reading in Data:
+```{r}
+data = vroom("subset.csv")
+```
+
+Cleaning Data:
+```{r}
+# Filter out non-alcohol sales
+data %>% filter(CategoryName != "DECANTERS & SPECIALTY PACKAGES") -> data
+
+# Finding all unique Category Names (128 total)
+unique(data$CategoryName)
+
+# Adding column for more broad category names
+data %>% mutate(BroadCat = case_when(grepl("LIQUEUR", CategoryName, ignore.case = TRUE) ~ "Liqueur",
+                                    grepl("RUM", CategoryName, ignore.case = TRUE) ~ "Rum",
+                                    grepl("TEQ", CategoryName, ignore.case = TRUE) ~ "Tequila",
+                                    grepl("SCHNAP", CategoryName, ignore.case = TRUE) ~ "Schnapps",
+                                    grepl("VODK", CategoryName, ignore.case = TRUE) ~ "Vodka",
+                                    grepl("GIN", CategoryName, ignore.case = TRUE) ~ "Gin",
+                                    grepl("RUM", CategoryName, ignore.case = TRUE) ~ "Rum",
+                                    grepl("AMARETTO", CategoryName, ignore.case = TRUE) ~ "Liqueur",
+                                    grepl("SCOTCH", CategoryName, ignore.case = TRUE) ~ "Whiskey",
+                                    grepl("WHISK", CategoryName, ignore.case = TRUE) ~ "Whiskey")) -> data
+
+# Removing potentially problematic characters from column names
+gsub("\\s*\\([^\\)]+\\)","",as.character(colnames(data))) -> colnames(data)
+
+# Checking column classes to ensure they are correct
+sapply(data, class)
+
+# Removing special characters from Sale, StateBottleCost, and StateBottleRetial columns
+# and converting columns to numeric
+as.numeric(gsub("[^0-9.-]", "", data$Sale)) -> data$Sale
+as.numeric(gsub("[^0-9.-]", "", data$StateBottleCost)) -> data$StateBottleCost
+as.numeric(gsub("[^0-9.-]", "", data$StateBottleRetail)) -> data$StateBottleRetail
+
+# Making County var uniform string as title
+data$County = str_to_title(data$County)
+data$City = str_to_title(data$City)
+
+# Saving cleaned data to use in other scripts
+save(data)
+```
