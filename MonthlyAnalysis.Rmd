@@ -1,0 +1,63 @@
+---
+title: "MonthlyAnalysis"
+author: "Jonah Gerstel"
+date: "8/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load in libraries:
+```{r}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(vroom)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+```
+
+Load in cleaned data:
+```{r}
+load(data)
+```
+
+Monthly Breakdown
+```{r}
+# Breaking down monthly sales by category
+data %>% group_by(Month, BroadCat) %>% summarise(TotalSales = sum(Sale)) -> MoSalesbyCat
+
+# Breaking down average monthly sales by category for later comparison
+data %>% group_by(Month, BroadCat) %>% summarise(TotalSales = sum(Sale)) %>% group_by(BroadCat) %>% summarise(MeanMoSales = mean(TotalSales)) %>% drop_na()-> MoSalesAvgbyCat
+
+# Merging in average monthly sales by category to monthly sales per category for comparison
+MoCombined = merge(MoSalesbyCat, MoSalesAvgbyCat, by = "BroadCat")
+MoCombined %>% mutate(SalesDiff = (TotalSales - MeanMoSales)/MeanMoSales) -> MoCombined
+
+# Bar plot of monthly sales difference between average and each month
+ggplot(MoCombined, aes(x=Month, y=SalesDiff, fill = BroadCat)) + 
+  geom_bar(stat = "identity", position="dodge") +
+  xlab("Month") + ylab("Monthly Sales Diff (%)") + labs(title = "Monthly Sales vs Avg Monthly Sales") + coord_flip()
+
+# Pulling only months/categories with 10% deviance from average
+MoCombined %>% filter(SalesDiff > 0.1 | SalesDiff < -0.1) -> LargeMoChange
+LargeMoChange
+
+# Plotting months/categories and associated changes with 10% deviance
+ggplot(LargeMoChange, aes(x=Month, y=SalesDiff, fill = BroadCat)) + 
+  geom_bar(stat = "identity", position="dodge") +
+  xlab("Month") + ylab("Monthly Sales Diff (%)") + labs(title = "Monthly Sales vs Avg Monthly Sales over 10%") + coord_flip()
+
+# Pulling only months/categories with 20% deviance from average
+MoCombined %>% filter(SalesDiff > 0.2 | SalesDiff < -0.2) -> XLargeMoChange
+XLargeMoChange
+
+# Plotting months/categories and associated changes with 10% deviance
+ggplot(XLargeMoChange, aes(x=Month, y=SalesDiff, fill = BroadCat)) + 
+  geom_bar(stat = "identity", position="dodge") +
+  xlab("Month") + ylab("Monthly Sales Diff (%)") + labs(title = "Monthly Sales vs Avg Monthly Sales over 20%") + coord_flip()
+```
