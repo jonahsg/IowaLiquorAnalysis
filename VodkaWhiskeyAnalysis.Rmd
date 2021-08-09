@@ -1,0 +1,47 @@
+---
+title: "VodkaWhiskeyAnalysis"
+author: "Jonah Gerstel"
+date: "8/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load in libraries:
+```{r}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(vroom)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+```
+
+Load in cleaned data:
+```{r}
+load(data)
+```
+
+Vodka and Whiskey Distribution & Analysis
+```{r}
+# Looking at pricing distribution for vodka and whiskey
+data %>% filter(BroadCat == 'Vodka'|BroadCat == 'Whiskey') %>% mutate(PricePerL = StateBottleCost/(BottleVolume/1000)) -> VodWhisPPL
+
+# Density plot of vodka and whiskey prices per liter
+ggplot(VodWhisPPL, aes(x=PricePerL, color = BroadCat)) + geom_density() + xlim(c(0,70)) +
+    labs(title = 'Density Plot for Price/L for Whiskey and Vodka', y = 'Density', x = 'Price/L')
+
+# DF for top vodka types in popular upper level price range ($20-25/L)
+VodWhisPPL %>% filter(BroadCat == 'Vodka' & PricePerL > 20 & PricePerL < 25) %>% group_by(ItemDescription) %>% summarise(TotalSales = sum(Sale)) %>% arrange(desc(TotalSales)) -> Vod20to25
+
+# DF for top whiskey types in popular upper level price range ($15-25/L)
+VodWhisPPL %>% filter(BroadCat == 'Whiskey' & PricePerL > 15 & PricePerL < 25) %>% group_by(ItemDescription) %>% summarise(TotalSales = sum(Sale)) %>% arrange(desc(TotalSales)) -> Whisk15to25
+
+# Showing top vodka and whiskey DFs
+Vod20to25
+Whisk15to25 
+```
